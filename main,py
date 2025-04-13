@@ -1,0 +1,50 @@
+import tensorflow as tf # добавление библиотеки для машинного обучения
+import matplotlib.pyplot as plt # добавление библиотеки для визуализации данных
+import numpy as np  # добавление библиотеки для многомерных массивов и матриц
+import os
+import cv2
+
+
+
+image_dir = "lines"
+label_map = {'left': 0, 'right': 1}
+
+X = []
+y = []
+
+# Загрузка и метки
+for fname in os.listdir(image_dir):
+    path = os.path.join(image_dir, fname)
+    img = cv2.imread(path, cv2.IMREAD_GRAYSCALE)
+    img = cv2.resize(img, (160, 120))  # точно как в твоем коде
+    X.append(img / 255.0)  # нормализация
+    for key in label_map:
+        if key in fname:
+            y.append(label_map[key])
+            break
+
+X = np.array(X).reshape(-1, 160, 120)  # для Flatten слоя
+y = np.array(y)
+
+# Создание модели для обучения нейросети
+model = tf.keras.models.Sequential([ # создание модели
+  tf.keras.layers.Flatten(input_shape=(160, 120)), # создание слоев и добавления формы 160x120 пикселей
+  tf.keras.layers.Dense(64, activation='relu'), # добавление функции активации
+  tf.keras.layers.Dropout(0.2), # удалять из обучения случайным образом от 0% до 20%
+  tf.keras.layers.Dense(2) # создание 3 нейронов со входными значениями
+])
+
+
+model.compile(optimizer='adam',
+              loss=tf.keras.losses.SparseCategoricalCrossentropy(from_logits=True),
+              metrics=['accuracy'])
+
+model.fit(X, y, epochs=100)
+
+
+converter = tf.lite.TFLiteConverter.from_keras_model(model)
+converter.optimizations = [tf.lite.Optimize.DEFAULT]
+tflite_model = converter.convert()
+
+with open("model.tflite", "wb") as f:
+    f.write(tflite_model)
